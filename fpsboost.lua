@@ -1,62 +1,60 @@
 -- SETTINGS
 local FPS_LIMIT = 15
-local ShowFPS = true
 
--- 1. FPS CAP (Membatasi FPS ke 15)
-if setfpscap then
-    setfpscap(FPS_LIMIT)
-else
-    -- Fallback jika executor tidak support setfpscap
-    local runService = game:GetService("RunService")
-    runService.Stepped:Connect(function()
-        local startTime = os.clock()
-        while os.clock() - startTime < 1/FPS_LIMIT do
-            -- Loop kosong untuk menunda frame (Brute force method)
-        end
-    end)
-end
-
--- 2. DISABLE 3D RENDERING (Bikin GPU Adem)
--- Catatan: Layar akan terlihat "freeze" atau hitam, tapi script farming tetap jalan!
+-- 1. FPS CAP & DISABLE RENDERING (Gabungan dari sebelumnya)
+if setfpscap then setfpscap(FPS_LIMIT) end
 game:GetService("RunService"):Set3dRenderingEnabled(false)
 
--- 3. FPS COUNTER UI
-if ShowFPS then
-    local screenGui = Instance.new("ScreenGui")
-    local fpsLabel = Instance.new("TextLabel")
-
-    screenGui.Parent = game:GetService("CoreGui")
-    fpsLabel.Parent = screenGui
-    fpsLabel.Size = UDim2.new(0, 100, 0, 30)
-    fpsLabel.Position = UDim2.new(0, 10, 0, 10)
-    fpsLabel.BackgroundColor3 = Color3.new(0, 0, 0)
-    fpsLabel.TextColor3 = Color3.new(0, 1, 0)
-    fpsLabel.TextSize = 18
-    fpsLabel.Font = Enum.Font.Code
-    fpsLabel.BackgroundTransparency = 0.5
-
-    local lastTime = os.clock()
-    local frames = 0
-    game:GetService("RunService").RenderStepped:Connect(function()
-        frames = frames + 1
-        local currentTime = os.clock()
-        if currentTime - lastTime >= 1 then
-            fpsLabel.Text = "FPS: " .. tostring(frames)
-            frames = 0
-            lastTime = currentTime
+-- 2. MEMORY CLEANER (Hapus objek berat dari RAM)
+local function CleanRAM()
+    for _, v in pairs(game:GetDescendants()) do
+        -- Hapus Tekstur & Decal (Penyumbang RAM terbesar)
+        if v:IsA("Texture") or v:IsA("Decal") then
+            v:Destroy()
+        -- Hapus Suara (Audio buffer memakan RAM)
+        elseif v:IsA("Sound") then
+            v:Stop()
+            v:Destroy()
+        -- Hapus Partikel & Trail
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Sparkles") then
+            v:Destroy()
+        -- Ubah Part menjadi sangat sederhana
+        elseif v:IsA("MeshPart") or v:IsA("SpecialMesh") then
+            -- Jika bukan part utama farming, bisa dihilangkan detailnya
+            v:Destroy() 
+        elseif v:IsA("BasePart") then
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+            v.CastShadow = false
         end
-    end)
-end
-
--- 4. CLEANUP (Hapus Partikel & Tekstur yang tersisa)
-for _, v in pairs(game:GetDescendants()) do
-    if v:IsA("BasePart") then
-        v.Material = Enum.Material.SmoothPlastic
-        v.CastShadow = false
-    elseif v:IsA("Decal") or v:IsA("Texture") or v:IsA("ParticleEmitter") then
-        v:Destroy()
     end
 end
 
-print("Extreme Farming Mode Active: FPS Limited to " .. FPS_LIMIT)
+-- Jalankan pembersihan awal
+CleanRAM()
 
+-- 3. MATIKAN ANIMASI & EFEK POST-PROCESSING
+game:GetService("Lighting"):ClearAllChildren() -- Hapus Bloom, Blur, Sunrays, dll.
+settings().Rendering.QualityLevel = 1
+
+-- 4. FPS COUNTER (Tetap ada buat pantau)
+local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local fpsLabel = Instance.new("TextLabel", screenGui)
+fpsLabel.Size = UDim2.new(0, 120, 0, 30)
+fpsLabel.Position = UDim2.new(0, 10, 0, 10)
+fpsLabel.BackgroundColor3 = Color3.new(0,0,0)
+fpsLabel.TextColor3 = Color3.new(1,1,1)
+fpsLabel.BackgroundTransparency = 0.5
+
+local lastTime = os.clock()
+local frames = 0
+game:GetService("RunService").RenderStepped:Connect(function()
+    frames = frames + 1
+    if os.clock() - lastTime >= 1 then
+        fpsLabel.Text = "FPS: " .. frames .. " | RAM: " .. math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()) .. "MB"
+        frames = 0
+        lastTime = os.clock()
+    end
+end)
+
+print("RAM & FPS Optimizer Active!")
