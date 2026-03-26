@@ -1,111 +1,67 @@
 import os
+import sys
 import time
-import random
-import string
-import xml.etree.ElementTree as ET
+import subprocess
 
-def run_root(command):
-    return os.popen(f"su -c '{command}'").read().strip()
+# Path penyimpanan data rekaman
+RECORD_PATH = "/data/local/tmp/roblox_event.rec"
 
-def get_element_coords(search_text, search_type="text"):
-    """Mengambil koordinat elemen. Mencoba dump hingga 3 kali jika gagal."""
-    for attempt in range(3):
-        # Dump UI ke file sementara di folder tmp (lebih stabil)
-        run_root("uiautomator dump /data/local/tmp/view.xml")
-        xml_data = run_root("cat /data/local/tmp/view.xml")
-        
-        if not xml_data or "xml" not in xml_data:
-            time.sleep(2)
-            continue
-            
-        try:
-            root = ET.fromstring(xml_data)
-            for node in root.iter('node'):
-                # Cek teks atau deskripsi (Roblox kadang pakai content-desc)
-                if node.get('text') == search_text or node.get('content-desc') == search_text:
-                    bounds = node.get('bounds')
-                    coords = bounds.replace('[', '').replace(']', ',').split(',')
-                    x = (int(coords[0]) + int(coords[2])) // 2
-                    y = (int(coords[1]) + int(coords[3])) // 2
-                    return x, y
-        except Exception as e:
-            pass
-        time.sleep(1)
-    return None
+def run_shell(command):
+    return subprocess.run(f"su -c '{command}'", shell=True)
 
-def tap_element(text):
-    coords = get_element_coords(text)
-    if coords:
-        print(f"[*] Mengetuk {text} di {coords}")
-        run_root(f"input tap {coords[0]} {coords[1]}")
-        return True
-    return False
-
-def setup_account():
-    # 1. Reset dan Paksa Buka
-    print("[*] Membersihkan data lama...")
-    run_root("pm clear com.roblox.client")
-    time.sleep(2)
-
-    print("[*] Membuka Roblox (Metode Launcher)...")
-    # Menggunakan monkey untuk simulasi klik ikon di menu
-    run_root("monkey -p com.roblox.client -c android.intent.category.LAUNCHER 1")
+def record_mode():
+    print("\n" + "="*40)
+    print(" [!] MODE REKAM AKTIF")
+    print("="*40)
+    print("1. Segera pindah ke aplikasi Roblox.")
+    print("2. Lakukan pendaftaran sampai LOGOUT.")
+    print("3. Jika sudah selesai, kembali ke Termux.")
+    print("4. Tekan CTRL+C untuk berhenti merekam.")
+    print("="*40 + "\n")
     
-    # Tunggu loading awal yang biasanya berat
-    print("[*] Menunggu aplikasi terbuka (25 detik)...")
-    time.sleep(25)
-
-    # 2. Klik Sign Up dengan pengecekan ulang
-    if not tap_element("Sign Up"):
-        print("[!] Tombol Sign Up tidak ditemukan. Mencoba scroll sedikit...")
-        run_root("input swipe 500 1000 500 500 500") # Scroll barangkali tertutup
-        time.sleep(2)
-        if not tap_element("Sign Up"):
-            print("[!] Gagal total menemukan tombol Sign Up.")
-            return
-
-    # 3. Proses Pengisian (Gunakan jeda antar input)
-    time.sleep(3)
-    print("[*] Mengatur Tanggal Lahir...")
-    tap_element("Birthday")
-    time.sleep(2)
+    # Menghapus rekaman lama jika ada
+    run_shell(f"rm {RECORD_PATH}")
     
-    # Swipe tahun ke bawah (ke arah tahun 2000)
-    for _ in range(15):
-        run_root("input swipe 500 1600 500 1900 150")
+    try:
+        # Merekam event input secara mentah (Binary)
+        # getevent -t memberikan timestamp agar jeda antar klik terekam presisi
+        os.system(f"su -c 'getevent -t /dev/input/event1 > {RECORD_PATH}'")
+    except KeyboardInterrupt:
+        print("\n\n[OK] Rekaman berhasil disimpan di " + RECORD_PATH)
+        print("[*] Jalankan script lagi untuk memutar ulang.")
+
+def replay_mode():
+    print("\n" + "="*40)
+    print(" [►] MODE OTOMATIS (REPLAY)")
+    print("="*40)
+    print("[*] Menjalankan gerakan sesuai rekaman...")
     
-    tap_element("SET") or tap_element("Confirm")
-    time.sleep(2)
-
-    # 4. Data Akun
-    user = "Gem" + "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
-    pw = "".join(random.choices(string.ascii_letters + string.digits, k=10)) + "A1!"
-
-    print(f"[*] Input Username: {user}")
-    tap_element("Username")
-    time.sleep(1)
-    run_root(f"input text {user}")
+    # Mengambil data dari file rekaman dan mengirimnya kembali ke sistem input
+    # Kita menggunakan awk untuk membersihkan output getevent agar bisa dibaca sendevent
+    cmd = (
+        "su -c \"awk '{ "
+        "gsub(/\\[|\\/dev\\/input\\/event1:|\\]/, \\\"\\\"); "
+        "print \\\"sendevent /dev/input/event1 \\\" $2 \\\" \\\" $3 \\\" \\\" $4 "
+        "}' " + RECORD_PATH + " | sh\""
+    )
     
-    time.sleep(2)
-    print("[*] Input Password...")
-    tap_element("Password")
-    time.sleep(1)
-    run_root(f"input text {pw}")
-
-    # 5. Gender & Submit
-    time.sleep(2)
-    # Pilih Male (Biasanya ini ada di content-desc)
-    coords_male = get_element_coords("Male")
-    if coords_male:
-        run_root(f"input tap {coords_male[0]} {coords_male[1]}")
-    
-    print("[*] Menyelesaikan Pendaftaran...")
-    tap_element("Sign Up")
-
-    # Simpan Hasil
-    with open("/sdcard/hasil_roblox.txt", "a") as f:
-        f.write(f"{user}:{pw}\n")
-    print(f"[SUKSES] Akun {user} berhasil dibuat dan disimpan.")
+    try:
+        os.system(cmd)
+        print("\n[OK] Selesai memutar ulang gerakan.")
+    except Exception as e:
+        print(f"\n[!] Gagal memutar: {e}")
 
 if __name__ == "__main__":
-    setup_account()
+    # Cek apakah file rekaman sudah ada
+    if not os.path.exists(RECORD_PATH) or os.path.getsize(RECORD_PATH) == 0:
+        record_mode()
+    else:
+        print("[+] File rekaman ditemukan.")
+        pilihan = input("Putar rekaman sekarang? (y) atau Rekam ulang? (r): ").lower()
+        
+        if pilihan == 'y':
+            replay_mode()
+        elif pilihan == 'r':
+            record_mode()
+        else:
+            print("Dibatalkan.")
