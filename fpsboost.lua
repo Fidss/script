@@ -1,26 +1,23 @@
 -- SETTINGS
-local FPS_LIMIT = 15
+local FPS_LIMIT = 10 
 
--- 1. FPS CAP & DISABLE RENDERING (Gabungan dari sebelumnya)
+-- 1. FPS CAP & DISABLE RENDERING
 if setfpscap then setfpscap(FPS_LIMIT) end
 game:GetService("RunService"):Set3dRenderingEnabled(false)
 
--- 2. MEMORY CLEANER (Hapus objek berat dari RAM)
-local function CleanRAM()
+-- 2. HARD MUTE & MEMORY CLEANER
+local function CleanGame()
+    UserSettings():GetService("UserGameSettings").MasterVolume = 0
+    
     for _, v in pairs(game:GetDescendants()) do
-        -- Hapus Tekstur & Decal (Penyumbang RAM terbesar)
-        if v:IsA("Texture") or v:IsA("Decal") then
-            v:Destroy()
-        -- Hapus Suara (Audio buffer memakan RAM)
-        elseif v:IsA("Sound") then
+        if v:IsA("Sound") then
             v:Stop()
             v:Destroy()
-        -- Hapus Partikel & Trail
-        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Sparkles") then
+        elseif v:IsA("Texture") or v:IsA("Decal") then
             v:Destroy()
-        -- Ubah Part menjadi sangat sederhana
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Sparkles") or v:IsA("Explosion") then
+            v:Destroy()
         elseif v:IsA("MeshPart") or v:IsA("SpecialMesh") then
-            -- Jika bukan part utama farming, bisa dihilangkan detailnya
             v:Destroy() 
         elseif v:IsA("BasePart") then
             v.Material = Enum.Material.SmoothPlastic
@@ -30,31 +27,52 @@ local function CleanRAM()
     end
 end
 
--- Jalankan pembersihan awal
-CleanRAM()
+CleanGame()
 
--- 3. MATIKAN ANIMASI & EFEK POST-PROCESSING
-game:GetService("Lighting"):ClearAllChildren() -- Hapus Bloom, Blur, Sunrays, dll.
+game.DescendantAdded:Connect(function(v)
+    if v:IsA("Sound") then
+        v.Volume = 0
+        v:Stop()
+        v:Destroy()
+    elseif v:IsA("Texture") or v:IsA("Decal") then
+        v:Destroy()
+    end
+end)
+
+-- 3. MATIKAN EFEK LIGHTING
+game:GetService("Lighting"):ClearAllChildren()
 settings().Rendering.QualityLevel = 1
 
--- 4. FPS COUNTER (Tetap ada buat pantau)
+-- 4. FPS & RAM COUNTER ONLY (Tanpa Background Full Screen)
 local screenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
-local fpsLabel = Instance.new("TextLabel", screenGui)
-fpsLabel.Size = UDim2.new(0, 120, 0, 30)
-fpsLabel.Position = UDim2.new(0, 10, 0, 10)
-fpsLabel.BackgroundColor3 = Color3.new(0,0,0)
-fpsLabel.TextColor3 = Color3.new(1,1,1)
-fpsLabel.BackgroundTransparency = 0.5
+screenGui.Name = "PerformanceOverlay"
 
+-- Label FPS & RAM (Dibuat agak transparan agar tidak mengganggu)
+local infoLabel = Instance.new("TextLabel", screenGui)
+infoLabel.Size = UDim2.new(0, 180, 0, 30)
+infoLabel.Position = UDim2.new(0, 10, 0, 10) 
+infoLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0) 
+infoLabel.TextColor3 = Color3.fromRGB(255, 255, 255) 
+infoLabel.BackgroundTransparency = 0.5 -- Transparan setengah
+infoLabel.Font = Enum.Font.Code
+infoLabel.TextSize = 14
+infoLabel.TextXAlignment = Enum.TextXAlignment.Center
+
+-- Update Stats
 local lastTime = os.clock()
 local frames = 0
-game:GetService("RunService").RenderStepped:Connect(function()
+game:GetService("RunService").Heartbeat:Connect(function()
     frames = frames + 1
     if os.clock() - lastTime >= 1 then
-        fpsLabel.Text = "FPS: " .. frames .. " | RAM: " .. math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()) .. "MB"
+        local mem = math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb())
+        infoLabel.Text = "FPS: " .. frames .. " | RAM: " .. mem .. "MB"
         frames = 0
         lastTime = os.clock()
     end
 end)
 
-print("RAM & FPS Optimizer Active!")
+print("------------------------------------------")
+print("OPTIMIZER RUNNING")
+print("- Background: Transparent")
+print("- Indicator: Active")
+print("------------------------------------------")
