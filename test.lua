@@ -100,9 +100,9 @@ local FPSSettings = {
 local FISHING_SPOT = Vector3.new(6014.79, -585.92, 4635.71)
 
 -- Koordinat di atas bangunan (untuk spawn point)
-local SPAWN_POINT = Vector3.new(6014.79, -580, 4635.71) -- 5 studs di atas fishing spot
+local SPAWN_POINT = Vector3.new(6014.79, -580, 4635.71)
 
--- Rotasi karakter (160 derajat)
+-- Rotasi karakter (215 derajat)
 local CHARACTER_ROTATION = math.rad(215)
 
 -- ==========================================
@@ -226,7 +226,7 @@ local function DisableNoclip()
 end
 
 -- ==========================================
--- FUNGSI JATUH TERARAH (NO CLIP FALL) + ROTASI 160°
+-- FUNGSI JATUH TERARAH (NO CLIP FALL) + ROTASI
 -- ==========================================
 local function GuidedFall(targetPosition)
     local character = LocalPlayer.Character
@@ -238,62 +238,47 @@ local function GuidedFall(targetPosition)
     local humanoid = character:FindFirstChild("Humanoid")
     if not humanoid then return false end
     
-    -- Enable noclip agar tidak menabrak bangunan
     EnableNoclip()
     
     ResponseLog:Set({Title = "🕊️ Falling", Content = "NoClip enabled, falling to fishing spot..."})
     
-    -- Buat BodyVelocity untuk mengarahkan jatuh
     local bodyVelocity = Instance.new("BodyVelocity")
     bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
     bodyVelocity.Velocity = Vector3.new(0, 0, 0)
     bodyVelocity.P = 10000
     bodyVelocity.Parent = humanoidRootPart
     
-    -- Loop untuk mengarahkan jatuh ke target
     local startTime = tick()
-    local timeout = 15 -- Timeout 15 detik
+    local timeout = 15
     
     while (humanoidRootPart.Position - targetPosition).Magnitude > 2 do
         if tick() - startTime > timeout then
-            break -- Timeout
+            break
         end
         
         local currentPos = humanoidRootPart.Position
         local direction = (targetPosition - currentPos).Unit
-        
-        -- Kecepatan jatuh natural dengan kontrol arah
-        local fallSpeed = 30 -- Kecepatan jatuh
+        local fallSpeed = 30
         local distanceLeft = (targetPosition - currentPos).Magnitude
         
-        -- Jika sudah dekat, pelan-pelan
         if distanceLeft < 5 then
             fallSpeed = distanceLeft * 3
         end
         
         bodyVelocity.Velocity = direction * fallSpeed
         
-        -- Update log setiap detik
-        if math.floor(tick() - startTime) % 1 == 0 then
-            ResponseLog:Set({Title = "🕊️ Falling", Content = "Distance left: " .. math.floor(distanceLeft) .. " studs"})
-        end
-        
         task.wait()
     end
     
-    -- Hapus BodyVelocity
     bodyVelocity:Destroy()
     
-    -- Set posisi final tepat di target dengan rotasi 160 derajat
     local finalCFrame = CFrame.new(targetPosition) * CFrame.Angles(0, CHARACTER_ROTATION, 0)
     humanoidRootPart.CFrame = finalCFrame
     
-    ResponseLog:Set({Title = "✅ Landed", Content = "Reached fishing spot! Rotated 160°"})
+    ResponseLog:Set({Title = "✅ Landed", Content = "Reached fishing spot! Rotated 215°"})
     
-    -- Kembalikan humanoid ke state normal
     humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
     
-    -- Disable noclip setelah delay kecil
     task.wait(0.5)
     DisableNoclip()
     
@@ -359,21 +344,6 @@ local function MakeCharacterJump()
     
     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     return true
-end
-
--- ==========================================
--- FUNGSI LOMPAT KELUAR DARI BOAT
--- ==========================================
-local function JumpOutOfBoat()
-    local character = LocalPlayer.Character
-    if not character then return end
-    
-    local humanoid = character:FindFirstChild("Humanoid")
-    if not humanoid then return end
-    
-    -- Loncat untuk lepas dari seat
-    humanoid.Jump = true
-    task.wait(0.3)
 end
 
 -- ==========================================
@@ -685,7 +655,8 @@ MainTab:CreateButton({
 
 MainTab:CreateDivider()
 
--- Tombol utama: SpawnBoat → TeleportBoat → Jalan Mundur 3 detik → Loncat Keluar Boat → Teleport Player + Loncat → Tunggu 3 detik → TeleportBoat → Loncat Keluar → DespawnBoat → Teleport ke atas bangunan → NoClip jatuh terarah
+-- Tombol utama:
+-- SpawnBoat → TeleportBoat → Jalan Mundur 3s → Teleport Player + Loncat → Jeda 3s → TeleportBoat → Jeda 1s → DespawnBoat → Teleport Player + Cek Distance
 MainTab:CreateButton({
    Name = "🚤 Spawn & Move to Spot",
    Callback = function()
@@ -699,10 +670,8 @@ MainTab:CreateButton({
            return ResponseLog:Set({Title = "❌ Error", Content = "DespawnBoat tidak ditemukan!"}) 
        end
        
-       -- ==========================================
-       -- STEP 1: SPAWN BOAT
-       -- ==========================================
-       ResponseLog:Set({Title = "🚤 Step 1/10", Content = "Spawning boat..."})
+       -- STEP 1: Spawn Boat
+       ResponseLog:Set({Title = "🚤 Step 1/8", Content = "Spawning boat..."})
        local s1, r1 = pcall(function() 
            return Remotes.SpawnBoat:InvokeServer(1) 
        end)
@@ -711,70 +680,43 @@ MainTab:CreateButton({
            return ResponseLog:Set({Title = "❌ Error", Content = "Gagal spawn: " .. tostring(r1)}) 
        end
        
-       ResponseLog:Set({Title = "✅ Step 1/10", Content = "Boat spawned!"})
-       task.wait(1.5)
+       ResponseLog:Set({Title = "✅ Step 1/8", Content = "Boat spawned!"})
+       task.wait(1)
        
-       -- ==========================================
-       -- STEP 2: TELEPORT BOAT PERTAMA (otomatis duduk)
-       -- ==========================================
-       ResponseLog:Set({Title = "⚡ Step 2/10", Content = "First boat teleport..."})
+       -- STEP 2: Teleport Boat (pertama)
+       ResponseLog:Set({Title = "⚡ Step 2/8", Content = "First boat teleport..."})
+       local s2, e2 = pcall(function() 
+           Remotes.BoatTeleport:FireServer() 
+       end)
        
-       local tp1Success = false
-       for i = 1, 3 do
-           local s2, e2 = pcall(function() 
-               Remotes.BoatTeleport:FireServer() 
-           end)
-           if s2 then
-               tp1Success = true
-               break
-           end
-           task.wait(0.3)
+       if s2 then 
+           ResponseLog:Set({Title = "✅ Step 2/8", Content = "Boat teleported!"}) 
+       else 
+           return ResponseLog:Set({Title = "❌ Error", Content = "Teleport gagal: " .. tostring(e2)}) 
        end
        
-       if tp1Success then
-           ResponseLog:Set({Title = "✅ Step 2/10", Content = "Boat teleported & duduk!"})
-       else
-           return ResponseLog:Set({Title = "❌ Error", Content = "Teleport pertama gagal!"})
-       end
-       
-       task.wait(0.5)
-       
-       -- ==========================================
-       -- STEP 3: JALAN MUNDUR 3 DETIK (sambil di boat)
-       -- ==========================================
-       ResponseLog:Set({Title = "🚶 Step 3/10", Content = "Walking backward for 3 seconds..."})
+       -- STEP 3: Jalan mundur 3 detik
+       ResponseLog:Set({Title = "🚶 Step 3/8", Content = "Walking backward for 3 seconds..."})
        WalkBackward(3)
-       ResponseLog:Set({Title = "✅ Step 3/10", Content = "Walked backward!"})
+       ResponseLog:Set({Title = "✅ Step 3/8", Content = "Walked backward!"})
        
-       -- ==========================================
-       -- STEP 4: LOMPAT KELUAR DARI BOAT
-       -- ==========================================
-       ResponseLog:Set({Title = "🦘 Step 4/10", Content = "Jumping out of boat..."})
-       JumpOutOfBoat()
-       task.wait(0.5)
-       ResponseLog:Set({Title = "✅ Step 4/10", Content = "Out of boat!"})
-       
-       -- ==========================================
-       -- STEP 5: TELEPORT KARAKTER KE FISHING SPOT + LOMPAT
-       -- ==========================================
+       -- STEP 4: Teleport karakter + langsung loncat (tanpa jeda)
        local targetPos = CFrame.new(FISHING_SPOT) * CFrame.Angles(0, CHARACTER_ROTATION, 0)
-       ResponseLog:Set({Title = "📍 Step 5/10", Content = "Teleporting player & jumping..."})
+       ResponseLog:Set({Title = "📍 Step 4/8", Content = "Teleporting player & jumping..."})
        
        local charTeleported = TeleportCharacter(targetPos)
        
        if charTeleported then
            MakeCharacterJump()
-           ResponseLog:Set({Title = "✅ Step 5/10", Content = "Teleported & jumped!"})
+           ResponseLog:Set({Title = "✅ Step 4/8", Content = "Teleported & jumped!"})
        else
            return ResponseLog:Set({Title = "❌ Error", Content = "Character teleport gagal!"})
        end
        
-       -- ==========================================
-       -- STEP 6: TUNGGU 3 DETIK
-       -- ==========================================
-       ResponseLog:Set({Title = "⏱️ Step 6/10", Content = "Waiting 3 seconds..."})
+       -- STEP 5: Jeda 3 detik
+       ResponseLog:Set({Title = "⏱️ Step 5/8", Content = "Waiting 3 seconds..."})
        task.wait(3)
-       ResponseLog:Set({Title = "✅ Step 6/10", Content = "Wait complete!"})
+       ResponseLog:Set({Title = "✅ Step 5/8", Content = "Wait complete!"})
        
        -- Reset velocity karakter
        local char = LocalPlayer.Character
@@ -785,81 +727,76 @@ MainTab:CreateButton({
            end
        end
        
-       -- ==========================================
-       -- STEP 7: TELEPORT BOAT KEDUA (otomatis duduk lagi)
-       -- ==========================================
-       ResponseLog:Set({Title = "⚡ Step 7/10", Content = "Second boat teleport..."})
+       -- STEP 6: Teleport Boat (kedua)
+       ResponseLog:Set({Title = "⚡ Step 6/8", Content = "Second boat teleport..."})
+       local tp2Success = false
        
-       -- Cek apakah boat masih ada
-       local boatExists = false
-       for _, obj in ipairs(workspace:GetChildren()) do
-           if obj:IsA("Model") and obj.Name:lower():find("boat") then
-               boatExists = true
-               break
-           end
-       end
-       
-       if boatExists then
-           -- Spam teleport boat kedua
-           local tp2Success = false
-           for i = 1, 5 do
-               local s7, e7 = pcall(function()
-                   Remotes.BoatTeleport:FireServer()
-               end)
-               if s7 then
-                   tp2Success = true
-               end
-               task.wait(0.15)
-           end
+       for i = 1, 5 do
+           local s6, e6 = pcall(function()
+               Remotes.BoatTeleport:FireServer()
+           end)
            
-           if tp2Success then
-               ResponseLog:Set({Title = "✅ Step 7/10", Content = "Second boat teleport done! Otomatis duduk lagi."})
-               task.wait(0.3)
-               
-               -- Loncat keluar lagi
-               JumpOutOfBoat()
-               task.wait(0.3)
-           else
-               ResponseLog:Set({Title = "⚠️ Step 7/10", Content = "Second teleport failed, lanjut..."})
+           if s6 then
+               tp2Success = true
            end
-       else
-           ResponseLog:Set({Title = "⚠️ Step 7/10", Content = "Boat already gone, skipping..."})
+           task.wait(0.15)
        end
        
-       -- ==========================================
-       -- STEP 8: DESPAWN BOAT
-       -- ==========================================
-       ResponseLog:Set({Title = "🛑 Step 8/10", Content = "Despawning boat..."})
-       task.wait(0.5)
+       if tp2Success then
+           ResponseLog:Set({Title = "✅ Step 6/8", Content = "Second boat teleport done!"})
+       else
+           ResponseLog:Set({Title = "⚠️ Step 6/8", Content = "Second teleport may have failed"})
+       end
        
+       -- STEP 7: Jeda 1 detik
+       ResponseLog:Set({Title = "⏱️ Step 7/8", Content = "Waiting 1 second..."})
+       task.wait(1)
+       ResponseLog:Set({Title = "✅ Step 7/8", Content = "Wait complete!"})
+       
+       -- STEP 8: Despawn Boat
+       ResponseLog:Set({Title = "🛑 Step 8/8", Content = "Despawning boat..."})
        local s8, r8 = pcall(function() 
            return Remotes.DespawnBoat:InvokeServer() 
        end)
        
        if s8 then 
-           ResponseLog:Set({Title = "✅ Step 8/10", Content = "Boat despawned!"}) 
+           ResponseLog:Set({Title = "✅ Step 8/8", Content = "Boat despawned!"}) 
        else 
-           ResponseLog:Set({Title = "⚠️ Step 8/10", Content = "Despawn: " .. tostring(r8)}) 
+           ResponseLog:Set({Title = "⚠️ Step 8/8", Content = "Despawn: " .. tostring(r8)}) 
        end
        
-       -- ==========================================
-       -- STEP 9: TELEPORT KE ATAS BANGUNAN
-       -- ==========================================
+       -- FINAL: Teleport karakter ke fishing spot + cek distance
        task.wait(0.5)
-       ResponseLog:Set({Title = "📍 Step 9/10", Content = "Teleporting to spawn point above building..."})
        
-       local spawnCFrame = CFrame.new(SPAWN_POINT) * CFrame.Angles(0, CHARACTER_ROTATION, 0)
-       TeleportCharacter(spawnCFrame)
-       
-       -- ==========================================
-       -- STEP 10: GUIDED FALL KE FISHING SPOT
-       -- ==========================================
-       task.wait(0.3)
-       ResponseLog:Set({Title = "🕊️ Step 10/10", Content = "NoClip & guided fall to fishing spot..."})
-       
-       GuidedFall(FISHING_SPOT)
-       
-       ResponseLog:Set({Title = "✅ Complete!", Content = "Ready to fish at (6014.79, -585.92, 4635.71) - 160° rotation"})
+       local character = LocalPlayer.Character
+       if character and character:FindFirstChild("HumanoidRootPart") then
+           local currentPos = character.HumanoidRootPart.Position
+           local distance = (currentPos - FISHING_SPOT).Magnitude
+           
+           ResponseLog:Set({Title = "📏 Distance Check", Content = "Distance: " .. math.floor(distance) .. " studs"})
+           
+           if distance > 500 then
+               ResponseLog:Set({Title = "❌ Gagal", Content = "Distance > 500 studs, dianggap gagal!"})
+           else
+               ResponseLog:Set({Title = "📍 Final Teleport", Content = "Teleporting to fishing spot..."})
+               
+               local finalCFrame = CFrame.new(FISHING_SPOT) * CFrame.Angles(0, CHARACTER_ROTATION, 0)
+               TeleportCharacter(finalCFrame)
+               MakeCharacterJump()
+               
+               -- Reset velocity
+               task.wait(0.3)
+               local char2 = LocalPlayer.Character
+               if char2 and char2:FindFirstChild("HumanoidRootPart") then
+                   char2.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+                   if char2:FindFirstChild("Humanoid") then
+                       char2.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+                   end
+               end
+               
+               ResponseLog:Set({Title = "✅ Complete!", Content = "Ready to fish at (6014.79, -585.92, 4635.71) - 215° rotation"})
+           end
+       end
    end,
 })
 
@@ -871,7 +808,7 @@ MainTab:CreateButton({
        local targetPos = CFrame.new(FISHING_SPOT) * CFrame.Angles(0, CHARACTER_ROTATION, 0)
        if TeleportCharacter(targetPos) then
            MakeCharacterJump()
-           ResponseLog:Set({Title = "✅", Content = "Teleported to fishing spot! (160°)"})
+           ResponseLog:Set({Title = "✅", Content = "Teleported to fishing spot! (215°)"})
        else
            ResponseLog:Set({Title = "❌", Content = "Teleport failed!"})
        end
@@ -954,7 +891,8 @@ FishingTab:CreateButton({
    Callback = function()
        if not Remotes.CatchFishCompleted then
            return FishingLog:Set({Title = "❌", Content = "Scan dulu!"})
-       end       if CatchFish() then
+       end
+       if CatchFish() then
            FishingLog:Set({Title = "✅ Caught!", Content = "Ikan diangkat!"})
        end
    end,
