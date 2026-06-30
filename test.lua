@@ -728,21 +728,40 @@ MainTab:CreateButton({
        end
        
        -- 5. Tunggu 3 detik
-       ResponseLog:Set({Title = "⏱️ Step 5/9", Content = "Waiting 3 seconds..."})
-       task.wait(3)
-       ResponseLog:Set({Title = "✅ Step 5/9", Content = "Wait complete!"})
-       
-       -- 6. Teleport Boat (kedua)
-       ResponseLog:Set({Title = "⚡ Step 6/9", Content = "Second boat teleport..."})
-       local s6, e6 = pcall(function() 
-           Remotes.BoatTeleport:FireServer() 
-       end)
-       
-       if s6 then 
-           ResponseLog:Set({Title = "✅ Step 6/9", Content = "Boat teleported again!"}) 
-       else 
-           ResponseLog:Set({Title = "❌ Error", Content = "Teleport gagal: " .. tostring(e6)}) 
-       end
+		ResponseLog:Set({Title = "⏱️ Step 5/9", Content = "Waiting 3 seconds..."})
+		task.wait(3)
+		ResponseLog:Set({Title = "✅ Step 5/9", Content = "Wait complete!"})
+
+		-- [FIX] Reset velocity karakter agar server tidak menganggap player sedang melayang/jatuh
+		local char = LocalPlayer.Character
+		if char and char:FindFirstChild("HumanoidRootPart") then
+			char.HumanoidRootPart.Velocity = Vector3.new(0, 0, 0)
+			if char:FindFirstChild("Humanoid") then
+				char.Humanoid:ChangeState(Enum.HumanoidStateType.Landed)
+			end
+		end
+
+		-- 6. Teleport Boat (kedua) dengan metode Retry / Spam
+		ResponseLog:Set({Title = "⚡ Step 6/9", Content = "Second boat teleport..."})
+		local teleportSuccess = false
+		
+		-- Loop 4 kali dengan jeda tipis untuk memastikan request masuk (bypass packet drop)
+		for i = 1, 4 do
+			local s6, e6 = pcall(function()
+				Remotes.BoatTeleport:FireServer()
+			end)
+			
+			if s6 then
+				teleportSuccess = true
+			end
+			task.wait(0.25)
+		end
+
+		if teleportSuccess then
+			ResponseLog:Set({Title = "✅ Step 6/9", Content = "Boat teleported again!"})
+		else
+			ResponseLog:Set({Title = "❌ Error", Content = "Teleport gagal direspon server!"})
+		end
        
        -- 7. Despawn Boat
        task.wait(0.5)
