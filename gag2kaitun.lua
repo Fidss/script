@@ -1,0 +1,61 @@
+getgenv().Config = {
+    ["Setting"] = {
+        ["White Screen"] = false
+    },
+    ["Main"] = {
+        ["Max Plant"] = 200,
+        ["Expand Garden"] = true,
+        ["Destroy Plants Priced Under 40% Most Expensive Plant"] = true, -- If enabled, it will destroy plants when the garden reaches its maximum plant count according to the configuration, and it may destroy plants even if you have selected them in plant seed
+        ["Collect Gold/Rainbow Seed"] = true,
+        ["Attack Player Steal Your Fruits"] = true,
+        ["FPS Boost"] = true
+    },
+    ["Plant Seed"] = {
+        ["Enable"] = true,
+        ["Seed"] = {"Bamboo","Blueberry","Apple","Tomato","Banana","Sunflower","Corn","Mushroom","Cherry","Mango","Grape","Coconut","Cactus","Baby Cactus","Pomegranate","Pineapple","Dragon Fruit","Poison Apple","Moon Bloom","Poison Ivy","Ghost Pepper","Venus Fly Trap","Dragon's Breath"}
+    },
+    ["Buy Seed"] = {
+        ["Enable"] = true,
+        ["Seed"] = {"Bamboo","Blueberry","Apple","Tomato","Banana","Sunflower","Corn","Mushroom","Cherry","Mango","Grape","Coconut","Cactus","Baby Cactus","Pomegranate","Pineapple","Dragon Fruit","Poison Apple","Moon Bloom","Poison Ivy","Ghost Pepper","Venus Fly Trap","Dragon's Breath"}
+    },
+    ["Buy Gear"] = {
+        ["Enable"] = true,
+        ["Gear"] = {"Common Watering Can","Common Sprinkler","Uncommon Sprinkler","Rare Sprinkler","Legendary Sprinkler","Super Watering Can","Super Sprinkler"}
+    },
+    ["Buy Pet"] = {
+        ["Enable"] = true,
+        ["Pet"] = {"IceSerpent","Raccoon","Unicorn","GoldenDragonfly","BlackDragon","Monkey","Bee","Robin"}
+    },
+    ["Use Gear"] = {
+        ["Use Watering Can"] = true,
+        ["Use Sprinkler"] = true
+    },
+    ["Favorite"] = {
+        ["Enable"] = false,
+        ["Rarity Fruits"] = {"Legendary","Mythic","Super"},
+        ["Mutation"] = {"Starstruck","Bloodlit","Solarflare"},
+        ["Minium Weight"] = 20
+    },
+    ["Mailbox"] = {
+        ["Enable"] = true,
+        ["Username"] = "gag2",
+        ["Note"] = "Send By Blue X Hub Kaitun",
+        ["Delay"] = 40,
+        ["Seed"] = {"Rainbow","Gold","Dragon's Breath"},
+        ["Count Seed"] = 1, -- Max 20
+        ["Gear"] = {},
+        ["Count Gear"] = 1, -- Max 20
+        ["Pet"] = {},
+        ["Count Pet"] = 1 -- Max 20
+    },
+    ["Webhook"] = {
+        ["Enable"] = true,
+        ["UrlWebhook"] = "https://discord.com/api/webhooks/1448922203352727654/FKz6rVzJiSSF4UK1lAYd9_HcynIxe9fxaj4twx-S4J8JZy7MTw37rITEFY-UK47BrqEG",
+        ["Favorite Fruits"] = true,
+        ["Gold/Rainbow Seed"] = true, -- send if collect gold/rainbow seed
+        ["Buy Pet"] = true, -- send if buy pet
+        ["Send Profile Player"] = true,
+        ["Delay Send Profile Player"] = 180
+    },
+}
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/...../refs/heads/main/KaitunGag2.lua"))()
